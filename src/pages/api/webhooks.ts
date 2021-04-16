@@ -18,7 +18,12 @@ export const config = {
   api: { bodyParser: false },
 };
 
-const relevantEvents = new Set(['checkout.session.completed']);
+const relevantEvents = new Set([
+  'checkout.session.completed',
+  'customer.subscription.created',
+  'customer.subscription.updated',
+  'customer.subscription.deleted',
+]);
 
 export default async function (req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'POST') {
@@ -42,13 +47,26 @@ export default async function (req: NextApiRequest, res: NextApiResponse) {
     if (relevantEvents.has(type)) {
       try {
         switch (type) {
+          case 'customer.subscription.updated':
+          case 'customer.subscription.deleted':
+            const subscription = event.data.object as Stripe.Subscription;
+
+            await saveSubscription(
+              subscription.id,
+              subscription.customer.toString(),
+              false
+            );
+
+            break;
+
           case 'checkout.session.completed':
             const checkoutSessions = event.data
               .object as Stripe.Checkout.Session;
 
             await saveSubscription(
               checkoutSessions.subscription.toString(),
-              checkoutSessions.customer.toString()
+              checkoutSessions.customer.toString(),
+              true
             );
 
             break;
